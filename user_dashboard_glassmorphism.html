@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive User Dashboard (Glassmorphism)</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #e0f7fa; /* Icy blue background */
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #dashboardTitle {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2em;
+      color: #00796b;
+    }
+    #uploadSection {
+      margin-bottom: 30px;
+    }
+    #uploadSection input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      width: 100%;
+    }
+    .chart {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      width: 40%;
+      min-width: 300px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+
+<h1 id="dashboardTitle">Upload User Data to Generate Dashboard</h1>
+
+<div id="uploadSection">
+  <input type="file" id="fileInput" accept=".json">
+</div>
+
+<div class="container">
+  <div id="joinDateChart" class="chart"></div>
+  <div id="ageDistributionChart" class="chart"></div>
+  <div id="genderChart" class="chart"></div>
+  <div id="geoChart" class="chart"></div>
+  <div id="accountStatusChart" class="chart"></div>
+</div>
+
+<script>
+document.getElementById('fileInput').addEventListener('change', function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const contents = e.target.result;
+    let users = JSON.parse(contents);
+
+    // If single object, convert to array
+    if (!Array.isArray(users)) {
+      users = [users];
+    }
+
+    generateDashboard(users);
+  };
+  reader.readAsText(file);
+});
+
+function generateDashboard(users) {
+  // 1. User Registration Over Time
+  const joinDates = users.map(u => formatDate(u['Join Date']));
+  const joinCount = {};
+  joinDates.forEach(date => {
+    joinCount[date] = (joinCount[date] || 0) + 1;
+  });
+  const joinLabels = Object.keys(joinCount);
+  const joinValues = Object.values(joinCount);
+
+  Plotly.newPlot('joinDateChart', [{
+    x: joinLabels,
+    y: joinValues,
+    type: 'scatter',
+    mode: 'lines+markers',
+    marker: { color: 'blue' }
+  }], {
+    title: 'User Registration Over Time',
+    xaxis: { title: 'Month-Year' },
+    yaxis: { title: 'Number of Users' }
+  });
+
+  // 2. User Age Distribution
+  const ages = users.map(u => calculateAge(u['Date of Birth']));
+  Plotly.newPlot('ageDistributionChart', [{
+    x: ages,
+    type: 'histogram',
+    marker: { color: 'teal' }
+  }], {
+    title: 'User Age Distribution',
+    xaxis: { title: 'Age' },
+    yaxis: { title: 'Count' }
+  });
+
+  // 3. Gender Breakdown
+  const genderCount = {};
+  users.forEach(u => {
+    const gender = u['Gender'] || 'Unknown';
+    genderCount[gender] = (genderCount[gender] || 0) + 1;
+  });
+  Plotly.newPlot('genderChart', [{
+    labels: Object.keys(genderCount),
+    values: Object.values(genderCount),
+    type: 'pie',
+    hole: 0.4
+  }], {
+    title: 'Gender Breakdown'
+  });
+
+  // 4. Geographic Distribution
+  const countryCount = {};
+  users.forEach(u => {
+    const country = u['Country'] || 'Unknown';
+    countryCount[country] = (countryCount[country] || 0) + 1;
+  });
+  Plotly.newPlot('geoChart', [{
+    type: 'bar',
+    x: Object.keys(countryCount),
+    y: Object.values(countryCount),
+    marker: { color: 'orange' }
+  }], {
+    title: 'Users by Country',
+    xaxis: { title: 'Country' },
+    yaxis: { title: 'Number of Users' }
+  });
+
+  // 5. Account Status Overview
+  const statusCount = {};
+  users.forEach(u => {
+    const status = u['Account Status'] || 'Unknown';
+    statusCount[status] = (statusCount[status] || 0) + 1;
+  });
+  Plotly.newPlot('accountStatusChart', [{
+    labels: Object.keys(statusCount),
+    values: Object.values(statusCount),
+    type: 'pie'
+  }], {
+    title: 'Account Status Overview'
+  });
+}
+
+// Helper Functions
+function calculateAge(dob) {
+  const parts = dob.split('-');
+  const birthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+function formatDate(dateStr) {
+  const parts = dateStr.split('-');
+  return `${parts[1]}-${parts[2]}`; // "MM-YYYY"
+}
+</script>
+
+</body>
+</html>
